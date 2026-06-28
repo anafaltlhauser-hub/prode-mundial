@@ -1749,19 +1749,21 @@ function calcClasificados16(){
     const userPreds=(D.preds||{})[u]||{};
     let pts=0;
 
+    // Build user's full predicted classified set (top 2 per group + best 8 thirds)
+    const userTop2=new Set();
+    const userThirds=[];
     gs.forEach(g=>{
       const matches=MP1.filter(m=>m.g===g);
       const table=simGroupTable(matches, userPreds);
-
-      // Check top 2
-      table.slice(0,2).forEach(r=>{
-        if(realClassified.has(r.team)) pts+=1;
-      });
-
-      // Check 3rd place prediction vs real best thirds
-      const third=table[2];
-      if(third && realBest8thirds.has(third.team)) pts+=1;
+      table.slice(0,2).forEach(r=>userTop2.add(r.team));
+      if(table[2]) userThirds.push(table[2]);
     });
+    userThirds.sort((a,b)=>b.pts!==a.pts?b.pts-a.pts:b.gd!==a.gd?b.gd-a.gd:b.gf-a.gf);
+    const userBest8thirds=new Set(userThirds.slice(0,8).map(r=>r.team));
+    const userClassified=new Set([...userTop2,...userBest8thirds]);
+
+    // 1 pt per team that appears in both user's and real classified sets
+    userClassified.forEach(t=>{ if(realClassified.has(t)) pts+=1; });
 
     updates[u]=pts;
   });
