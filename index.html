@@ -941,10 +941,6 @@ function score(uname, numWinners){
     if(res(p.gl,p.gv)&&res(o.gl,o.gv)&&res(p.gl,p.gv)===res(o.gl,o.gv)){
       pts+=1; if(+p.gl===+o.gl&&+p.gv===+o.gv)pts+=2;  // KO: 1pt resultado, 2pts exacto
     }
-    const rp=RPT[m.r]||0;
-    const ow=+o.gl>+o.gv?m.l:(+o.gv>+o.gl?m.v:(o.adv||null));  // empate→usar adv oficial
-    const pw=+p.gl>+p.gv?m.l:(+p.gv>+p.gl?m.v:(p.adv||null));  // empate→usar adv predicho
-    if(ow&&pw&&ow===pw)pts+=rp;
     mp+=pts; bd.push({t:`${m.r}: ${m.l} vs ${m.v}`,p:`${p.gl}–${p.gv}`,pts});
   });
   BQ.forEach(q=>{
@@ -1500,20 +1496,15 @@ function getAciertos(mid){
   const o=D.results[mid]; if(!o||o.gl===''||o.gl==null) return null;
   const users=Object.keys(D.preds||{});
   const hits=[];
+  const isKO=!!(RPT[((D.ko||KO_DEF).find(m=>m.id===mid)||{}).r]);
   users.forEach(u=>{
     const p=(D.preds[u]||{})[mid]; if(!p) return;
     const res_ok=res(p.gl,p.gv)&&res(o.gl,o.gv)&&res(p.gl,p.gv)===res(o.gl,o.gv);
     const exact=res_ok&&+p.gl===+o.gl&&+p.gv===+o.gv;
-    // KO: check equipo avanza
-    const rp=RPT[((D.ko||KO_DEF).find(m=>m.id===mid)||{}).r]||0;
-    const ow=+o.gl>+o.gv?(D.ko||KO_DEF).find(m=>m.id===mid)?.l:(+o.gv>+o.gl?(D.ko||KO_DEF).find(m=>m.id===mid)?.v:(o.adv||null));
-    const pw=+p.gl>+p.gv?p.l:(+p.gv>+p.gl?p.v:(p.adv||null));
-    const adv_ok=rp>0&&ow&&pw&&ow===pw;
     let pts=0;
-    if(res_ok) pts+=3;
-    if(exact) pts+=1;
-    if(adv_ok) pts+=rp;
-    if(pts>0) hits.push({u,pts,exact,adv_ok,rp});
+    if(res_ok) pts+=isKO?1:3;
+    if(exact) pts+=isKO?2:1;
+    if(pts>0) hits.push({u,pts,exact});
   });
   hits.sort((a,b)=>b.pts-a.pts);
   return hits;
@@ -1529,7 +1520,6 @@ function toggleAciertos(mid,btn){
     <span class="ac-name">${h.u}</span>
     <div style="display:flex;gap:5px;align-items:center">
       ${h.exact?'<span class="pbadge pp" style="font-size:.65rem">Exacto</span>':'<span class="pbadge pz" style="font-size:.65rem">Result.</span>'}
-      ${h.adv_ok?`<span class="pbadge pp" style="font-size:.65rem">+${h.rp}pts clasif.</span>`:''}
       <span class="pbadge pp">+${h.pts}pts</span>
     </div></div>`).join('');
   div.innerHTML=h; div.style.display='block'; btn.textContent='▲ Ocultar';
