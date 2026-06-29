@@ -1039,14 +1039,34 @@ function renderDetailIn(name,tid){
     </div></div>`;
   // ── Resultados procesados primero ──
   if(played.length){
+    const detailId='det_'+name.replace(/\W/g,'_');
     h+=`<div style="font-family:var(--mono);font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);margin-bottom:7px">Resultados procesados</div>`;
-    played.slice(-16).reverse().forEach(b=>{
-      h+=`<div class="drow"><span>${b.t}</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-family:var(--mono);font-size:.72rem;color:var(--ink3)">pred: ${b.p}</span>
-          <span class="pbadge ${b.pts>0?'pp':'pz'}">${b.pts>0?'+':''}${b.pts}</span>
-        </div></div>`;
-    });
+    const shortRound=t=>t.replace('Dieciseisavos','16°').replace('Octavos','8°').replace('Cuartos','4°').replace('Semifinal','SF').replace('3er Puesto','3°').replace('Final','F');
+    const allReversed=played.slice().reverse();
+    // Build cumulative totals going forward
+    const cumulative=[];
+    let running=0;
+    played.forEach(b=>{ running+=b.pts; cumulative.push(running); });
+    cumulative.reverse(); // now matches allReversed order
+    const recent=allReversed.slice(0,16);
+    const recentCum=cumulative.slice(0,16);
+    const rest=allReversed.slice(16);
+    const restCum=cumulative.slice(16);
+    const rowHtml=(b,cum)=>`<div class="drow" style="gap:6px">
+      <span style="font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0">${shortRound(b.t)}</span>
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;font-family:var(--mono);font-size:.72rem">
+        <span style="color:var(--ink3)">P:${b.p}</span>
+        <span class="pbadge ${b.pts>0?'pp':'pz'}" style="font-size:.62rem">${b.pts>0?'+':''}${b.pts}</span>
+        <span style="color:var(--ink2);font-weight:600">→${cum}</span>
+      </div></div>`;
+    recent.forEach((b,i)=>{ h+=rowHtml(b,recentCum[i]); });
+    if(rest.length){
+      h+=`<div id="${detailId}" style="display:none">`;
+      rest.forEach((b,i)=>{ h+=rowHtml(b,restCum[i]); });
+      h+=`</div><div style="text-align:center;margin:8px 0">
+        <button class="btn btn-outline btn-sm" onclick="const d=document.getElementById('${detailId}');const open=d.style.display==='block';d.style.display=open?'none':'block';this.textContent=open?'Ver todos los partidos ▾':'Ocultar ▲'">Ver todos los partidos ▾</button>
+      </div>`;
+    }
     h+=`<div style="border-top:1px solid var(--border);margin:12px 0"></div>`;
   } else h+='<p style="color:var(--ink3);font-style:italic;font-size:.88rem">Sin resultados procesados aún.</p>';
 
