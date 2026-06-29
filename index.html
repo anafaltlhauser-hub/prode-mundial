@@ -941,7 +941,7 @@ function score(uname, numWinners){
     if(res(p.gl,p.gv)&&res(o.gl,o.gv)&&res(p.gl,p.gv)===res(o.gl,o.gv)){
       pts+=1; if(+p.gl===+o.gl&&+p.gv===+o.gv)pts+=2;  // KO: 1pt resultado, 2pts exacto
     }
-    mp+=pts; bd.push({t:`${m.r}: ${m.l} vs ${m.v}`,p:`${p.gl}–${p.gv}`,pts});
+    mp+=pts; bd.push({t:`${m.r}: ${m.l} ${o.gl}–${o.gv} ${m.v}`,p:`${p.gl}–${p.gv}`,pts});
   });
   BQ.forEach(q=>{
     const uv=ub[q.key],ov=ob[q.key];
@@ -1098,23 +1098,52 @@ function renderDetailIn(name,tid){
 }
 
 // ─ PREDICTIONS ──────────────────────────────────────────────
+function reloadData(){
+  const btn=event.target;
+  btn.textContent='↺ Recargando...';
+  btn.disabled=true;
+  // Force re-read from Firebase
+  window._dbGet(window._dbRef(window._db,'/')).then(snap=>{
+    const val=snap.val()||{};
+    D.users=val.users||{};
+    D.phase1=val.phase1||'open';
+    D.phase2=val.phase2||'closed';
+    D.koRound=val.koRound||'none';
+    D.results=val.results||{};
+    D.bonus=val.bonus||{};
+    D.ko=val.ko||KO_DEF.map(m=>({...m}));
+    D.preds=val.preds||{};
+    D.userbonus=val.userbonus||{};
+    renderAll();
+    toast('✓ Datos actualizados');
+  }).catch(()=>{ btn.textContent='↺ Recargar datos'; btn.disabled=false; toast('✗ Error al recargar'); });
+}
+
 function renderPreds(){
   const w=document.getElementById('predWrap');
   if(!CU){w.innerHTML='<div class="alert alert-i">Iniciá sesión para cargar tus predicciones.</div>';return;}
+  // Add reload button at top
+  const reloadBtn=`<div style="text-align:right;margin-bottom:8px">
+    <button class="btn btn-outline btn-sm" onclick="reloadData()" style="font-size:.72rem">↺ Recargar datos</button>
+  </div>`;
   const pr=(D.preds||{})[CU.name]||{};
-  if(D.phase1==='open'){renderP1(pr,w);}
-  else if(D.phase2==='open'){renderP2(pr,w);}
+  const reloadDiv=document.createElement('div');
+  reloadDiv.innerHTML=reloadBtn;
+  w.innerHTML='';
+  w.appendChild(reloadDiv);
+  const contentDiv=document.createElement('div');
+  w.appendChild(contentDiv);
+  if(D.phase1==='open'){renderP1(pr,contentDiv);}
+  else if(D.phase2==='open'){renderP2(pr,contentDiv);}
   else if(D.phase1==='closed'&&D.phase2==='closed'){
-    // Both closed — show read-only view of whatever was submitted
     const hasP2=Object.keys(pr).some(k=>+k>=101);
     let html='<div class="alert alert-w" style="margin-bottom:14px">🔒 Las predicciones están cerradas — solo lectura.</div>';
     const tmpW=document.createElement('div');
     if(hasP2){renderP2ReadOnly(pr,tmpW);}
     else{renderP1ReadOnly(pr,tmpW);}
-    html+=tmpW.innerHTML;
-    w.innerHTML=html;
+    contentDiv.innerHTML=html+tmpW.innerHTML;
   }
-  else w.innerHTML='<div class="alert alert-w">Las predicciones están cerradas. El organizador las abrirá cuando corresponda.</div>';
+  else contentDiv.innerHTML='<div class="alert alert-w">Las predicciones están cerradas. El organizador las abrirá cuando corresponda.</div>';
 }
 
 function renderP1(pr,w){
