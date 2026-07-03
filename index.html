@@ -1666,8 +1666,10 @@ function simRankingAlt(){
   let rows='';
   scores.forEach((u,i)=>{
     const pos=new Set(scores.filter(x=>x.total>u.total).map(x=>x.total)).size+1;
-    const realRank=ranking().findIndex(r=>r.n===u.n)+1;
-    const diff=realRank-pos;
+    const realScores=ranking();
+    const realPts=(realScores.find(r=>r.n===u.n)||{}).total||0;
+    const realPos=new Set(realScores.filter(x=>x.total>realPts).map(x=>x.total)).size+1;
+    const diff=realPos-pos;
     const diffStr=diff===0?'=':(diff>0?`▲${diff}`:`▼${Math.abs(diff)}`);
     const diffColor=diff>0?'var(--green)':diff<0?'#c0392b':'var(--ink3)';
     rows+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--cream3)">
