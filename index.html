@@ -1422,7 +1422,7 @@ function renderP2(pr,w){
   const activeIdx=KO_ROUNDS.indexOf(activeRound);
   KO_ROUNDS.forEach((r,i)=>{
     if(i<activeIdx){
-      const hasData=ko.filter(m=>m.r===r).some(m=>pr[m.id]&&pr[m.id].gl!==undefined&&pr[m.id].gl!=='');
+      const hasData=ko.filter(m=>m.r===r).some(m=>pr[m.id]&&(pr[m.id].gl!==undefined&&pr[m.id].gl!==''||pr[m.id].adv));
       if(hasData) prevHtml+=koRoundReadOnly(pr,r,ko);
     }
   });
@@ -1440,7 +1440,7 @@ function renderP2(pr,w){
     <div style="font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink1);margin-bottom:10px">${activeRound} — Completar predicciones</div>
     <p style="font-style:italic;font-size:.86rem;color:var(--ink3);margin-bottom:14px">
       Predecí el resultado en tiempo reglamentario. Si ponés empate, elegí quién avanza por penales.<br>
-      <strong>+1 pt</strong> por acertar el resultado · <strong>+2 pts</strong> por marcador exacto
+      <strong>+1 pt</strong> por acertar el resultado · <strong>+2 pts</strong> por marcador exacto${activeRound==='Dieciseisavos'?' · <strong>+1 pt</strong> por equipo clasificado':''}
     </p>`;
   roundMatches.forEach(m=>{
     const p=pr[m.id]||{};
