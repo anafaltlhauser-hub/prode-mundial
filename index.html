@@ -1366,80 +1366,107 @@ function propagateBracket(pLocal){
   return pLocal;
 }
 
+function koRoundReadOnly(pr, roundName, ko){
+  // Returns read-only HTML for a completed KO round
+  const matches=ko.filter(m=>m.r===roundName);
+  if(!matches.length) return '';
+  let h=`<details style="margin-bottom:8px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:6px 0">Ver ${roundName} ▾</summary><div style="margin-top:8px">`;
+  matches.forEach(m=>{
+    const p=pr[m.id]||{};
+    const teamL=m.l||'TBD'; const teamV=m.v||'TBD';
+    const gl=p.gl!==undefined&&p.gl!==''?p.gl:'–';
+    const gv=p.gv!==undefined&&p.gv!==''?p.gv:'–';
+    const isDrawn=gl!=='–'&&gv!=='–'&&+gl===+gv;
+    const adv=p.adv||'';
+    const res=gl!=='–'&&gv!=='–'?`<span class="ro-score">${gl} : ${gv}</span>`:`<span class="ro-empty">Sin completar</span>`;
+    h+=`<div style="padding:6px 0;border-bottom:1px dashed var(--cream3)">
+      <div class="mrow" style="border:none;padding:0">
+        <div class="ml">${ft(teamL)}</div><div class="ms ro-ms">${res}</div><div class="mv">${ft(teamV)}</div>
+      </div>
+      ${isDrawn&&adv?`<div style="font-size:.78rem;color:var(--ink3);margin-top:3px">✱ Avanza: <strong>${adv}</strong></div>`:''}
+    </div>`;
+  });
+  h+=`</div></details>`;
+  return h;
+}
+
 function renderP2(pr,w){
   const ko=D.ko||KO_DEF;
   const activeRound=D.koRound||'none';
-  const pts={Dieciseisavos:1,Octavos:2,Cuartos:3,Semis:4,'3er Puesto':4,Final:5};
+  const KO_ROUNDS=['Dieciseisavos','Octavos','Cuartos','Semis','3er Puesto','Final'];
 
-  // Always show Phase 1 summary as collapsible at the top
+  // Build read-only summaries for all rounds that have predictions but are NOT active
   const gs=[...new Set(MP1.map(m=>m.g))].sort();
   const ub=(D.userbonus||{})[CU.name]||{};
-  let p1html=`<details style="margin-bottom:14px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:6px 0">Ver mis predicciones de Fase 1 ▾</summary><div style="margin-top:10px">`;
+
+  // Phase 1 collapsible
+  let prevHtml=`<details style="margin-bottom:8px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:6px 0">Ver Fase 1 — Grupos ▾</summary><div style="margin-top:10px">`;
   gs.forEach(g=>{
-    p1html+=`<div class="glabel">Grupo ${g}</div>`;
+    prevHtml+=`<div class="glabel">Grupo ${g}</div>`;
     MP1.filter(m=>m.g===g).forEach(m=>{
       const p=pr[m.id]||{};
       const gl=p.gl!==undefined&&p.gl!==''?p.gl:'–';
       const gv=p.gv!==undefined&&p.gv!==''?p.gv:'–';
       const res=gl!=='–'&&gv!=='–'?`<span class="ro-score">${gl} : ${gv}</span>`:`<span class="ro-empty">Sin completar</span>`;
-      p1html+=`<div class="mrow"><div class="ml">${ft(m.l)}</div><div class="ms ro-ms">${res}</div><div class="mv">${ft(m.v)}</div></div>`;
+      prevHtml+=`<div class="mrow"><div class="ml">${ft(m.l)}</div><div class="ms ro-ms">${res}</div><div class="mv">${ft(m.v)}</div></div>`;
     });
   });
-  // Bonus
-  p1html+=`<div style="margin-top:10px"><div class="glabel">Preguntas especiales</div>`;
+  prevHtml+=`<div style="margin-top:8px"><div class="glabel">Preguntas especiales</div>`;
   BQ.forEach(q=>{
     const val=ub[q.key]||'';
-    p1html+=`<div class="bitem"><div class="bq">${q.label}</div><div class="ro-bonus">${val?`<strong>${val}</strong>`:'<span class="ro-empty">Sin completar</span>'}</div></div>`;
+    prevHtml+=`<div class="bitem"><div class="bq">${q.label}</div><div class="ro-bonus">${val?`<strong>${val}</strong>`:'<span class="ro-empty">Sin completar</span>'}</div></div>`;
   });
-  p1html+=`</div></div></details>`;
+  prevHtml+=`</div></div></details>`;
+
+  // Add read-only for previous KO rounds (before active)
+  const activeIdx=KO_ROUNDS.indexOf(activeRound);
+  KO_ROUNDS.forEach((r,i)=>{
+    if(i<activeIdx){
+      const hasData=ko.filter(m=>m.r===r).some(m=>pr[m.id]&&pr[m.id].gl!==undefined&&pr[m.id].gl!=='');
+      if(hasData) prevHtml+=koRoundReadOnly(pr,r,ko);
+    }
+  });
 
   if(activeRound==='none'){
-    w.innerHTML='<div class="panel"><div class="ph"><h3>Mis predicciones</h3></div><div class="pb">'+p1html+'</div></div><div class="alert alert-w" style="margin-top:10px">No hay ninguna ronda eliminatoria abierta en este momento. El organizador la abrirá pronto.</div>';
+    w.innerHTML='<div class="panel"><div class="ph"><h3>Mis predicciones</h3></div><div class="pb">'+prevHtml+'</div></div><div class="alert alert-w" style="margin-top:10px">No hay ninguna ronda eliminatoria abierta en este momento. El organizador la abrirá pronto.</div>';
     return;
   }
 
   const roundMatches=ko.filter(m=>m.r===activeRound);
-  let h=`<div class="panel"><div class="ph"><h3>${activeRound} — Tus predicciones</h3></div><div class="pb">${p1html}`;
-  h+=`<div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>`;
-  h+=`<p style="font-style:italic;font-size:.86rem;color:var(--ink3);margin-bottom:14px">`;
-  h=h+`Predecí el resultado en tiempo reglamentario. Si ponés empate, elegí quién avanza por penales.</p>`;
-  // Dummy element to keep structure — real content added below
-  let h2=`<div class="panel" style="display:none"></div>`;
-  h=`<div class="panel"><div class="ph"><h3>${activeRound} — Tus predicciones</h3></div><div class="pb">${p1html}<div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>
+  let h=`<div class="panel"><div class="ph"><h3>${activeRound} — Tus predicciones</h3></div><div class="pb">
+    ${prevHtml}
+    <div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>
     <p style="font-style:italic;font-size:.86rem;color:var(--ink3);margin-bottom:14px">
       Predecí el resultado en tiempo reglamentario. Si ponés empate, elegí quién avanza por penales.<br>
       <strong>+1 pt</strong> por acertar el resultado · <strong>+2 pts</strong> por marcador exacto
     </p>`;
-  [activeRound].forEach(r=>{
-    h+=`<div class="glabel" style="margin-top:14px">${r}</div>`;
-    roundMatches.forEach(m=>{
-      const p=pr[m.id]||{};
-      const teamL=m.l||'TBD'; const teamV=m.v||'TBD';
-      const isDrawn=(p.gl!==''&&p.gl!==undefined&&p.gv!==''&&p.gv!==undefined&&+p.gl===+p.gv);
-      const advVal=p.adv||'';
-      h+=`<div class="ko-match" id="kom_${m.id}" style="padding:10px 0;border-bottom:1px dashed var(--cream3)">
-        <div class="mrow" style="border:none;padding:0">
-          <div class="ml">${ft(teamL)}</div>
-          <div class="ms">
-            <input type="number" class="sinp" id="p2_${m.id}_l" min="0" max="20" value="${p.gl!==undefined?p.gl:''}" placeholder="–" oninput="onKOInput(${m.id})">
-            <span class="ssep">:</span>
-            <input type="number" class="sinp" id="p2_${m.id}_v" min="0" max="20" value="${p.gv!==undefined?p.gv:''}" placeholder="–" oninput="onKOInput(${m.id})">
-          </div>
-          <div class="mv">${ft(teamV)}</div>
+  roundMatches.forEach(m=>{
+    const p=pr[m.id]||{};
+    const teamL=m.l||'TBD'; const teamV=m.v||'TBD';
+    const isDrawn=(p.gl!==''&&p.gl!==undefined&&p.gv!==''&&p.gv!==undefined&&+p.gl===+p.gv);
+    const advVal=p.adv||'';
+    h+=`<div class="ko-match" id="kom_${m.id}" style="padding:10px 0;border-bottom:1px dashed var(--cream3)">
+      <div class="mrow" style="border:none;padding:0">
+        <div class="ml">${ft(teamL)}</div>
+        <div class="ms">
+          <input type="number" class="sinp" id="p2_${m.id}_l" min="0" max="20" value="${p.gl!==undefined?p.gl:''}" placeholder="–" oninput="onKOInput(${m.id})">
+          <span class="ssep">:</span>
+          <input type="number" class="sinp" id="p2_${m.id}_v" min="0" max="20" value="${p.gv!==undefined?p.gv:''}" placeholder="–" oninput="onKOInput(${m.id})">
         </div>
-        <div id="adv_${m.id}" style="margin-top:7px;display:${isDrawn?'block':'none'}">
-          <div style="font-family:var(--mono);font-size:.65rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:6px">
-            ✱ Empate — ¿Quién avanza por penales?
-          </div>
-          <div style="display:flex;gap:8px">
-            <button id="adv_${m.id}_l" class="adv-btn ${advVal===teamL?'adv-active':''}" onclick="selectAdv(${m.id},'l')">${ft(teamL)}</button>
-            <button id="adv_${m.id}_v" class="adv-btn ${advVal===teamV?'adv-active':''}" onclick="selectAdv(${m.id},'v')">${ft(teamV)}</button>
-          </div>
+        <div class="mv">${ft(teamV)}</div>
+      </div>
+      <div id="adv_${m.id}" style="margin-top:7px;display:${isDrawn?'block':'none'}">
+        <div style="font-family:var(--mono);font-size:.65rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:6px">
+          ✱ Empate — ¿Quién avanza por penales?
         </div>
-      </div>`;
-    });
+        <div style="display:flex;gap:8px">
+          <button id="adv_${m.id}_l" class="adv-btn ${advVal===teamL?'adv-active':''}" onclick="selectAdv(${m.id},'l')">${ft(teamL)}</button>
+          <button id="adv_${m.id}_v" class="adv-btn ${advVal===teamV?'adv-active':''}" onclick="selectAdv(${m.id},'v')">${ft(teamV)}</button>
+        </div>
+      </div>
+    </div>`;
   });
-  h+=`<div style="margin-top:18px;text-align:right"><button class="btn btn-green" onclick="saveP2()">✓ Guardar predicciones fase 2</button></div></div></div>`;
+  h+=`<div style="margin-top:18px;text-align:right"><button class="btn btn-green" onclick="saveP2()">✓ Guardar predicciones ${activeRound}</button></div></div></div>`;
   w.innerHTML=h;
 }
 
