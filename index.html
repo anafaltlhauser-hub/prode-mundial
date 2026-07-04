@@ -1274,7 +1274,7 @@ function renderP2ReadOnly(pr,w){
   // P2 read-only
   h+=`<div class="panel" style="margin-top:16px"><div class="ph"><h3>Eliminatorias — Tus predicciones</h3></div><div class="pb">`;
   rounds.forEach(r=>{
-    h+=`<div class="glabel" style="margin-top:14px">${r} · <span style="color:var(--green2)">+${pts[r]||'?'} pts por equipo clasificado</span></div>`;
+    h+=`<div class="glabel" style="margin-top:14px">${r}</div>`;
     ko.filter(m=>m.r===r).forEach(m=>{
       const p=pr[m.id]||{};
       const teamL=m.l||'TBD'; const teamV=m.v||'TBD';
@@ -1433,9 +1433,11 @@ function renderP2(pr,w){
   }
 
   const roundMatches=ko.filter(m=>m.r===activeRound);
-  let h=`<div class="panel"><div class="ph"><h3>${activeRound} — Tus predicciones</h3></div><div class="pb">
+  const hasPrev=prevHtml.includes('<details');
+  let h=`<div class="panel"><div class="ph"><h3>Mis predicciones</h3></div><div class="pb">
     ${prevHtml}
-    <div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>
+    ${hasPrev?'<div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>':''}
+    <div style="font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink1);margin-bottom:10px">${activeRound} — Completar predicciones</div>
     <p style="font-style:italic;font-size:.86rem;color:var(--ink3);margin-bottom:14px">
       Predecí el resultado en tiempo reglamentario. Si ponés empate, elegí quién avanza por penales.<br>
       <strong>+1 pt</strong> por acertar el resultado · <strong>+2 pts</strong> por marcador exacto
