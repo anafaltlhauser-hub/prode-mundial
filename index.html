@@ -1422,8 +1422,10 @@ function renderP2(pr,w){
   const activeIdx=KO_ROUNDS.indexOf(activeRound);
   KO_ROUNDS.forEach((r,i)=>{
     if(i<activeIdx){
-      const hasData=ko.filter(m=>m.r===r).some(m=>pr[m.id]&&(pr[m.id].gl!==undefined&&pr[m.id].gl!==''||pr[m.id].adv));
-      if(hasData) prevHtml+=koRoundReadOnly(pr,r,ko);
+      // Use KO_DEF as fallback for round names in case D.ko is missing r field
+      const roundIds=KO_DEF.filter(m=>m.r===r).map(m=>m.id);
+      const hasData=roundIds.some(id=>pr[id]&&(pr[id].gl!==undefined&&pr[id].gl!==''||pr[id].adv));
+      if(hasData) prevHtml+=koRoundReadOnly(pr,r,ko.length?ko:KO_DEF);
     }
   });
 
