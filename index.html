@@ -182,6 +182,11 @@ main{padding:32px 0 60px}
   font-family:var(--serif);font-size:.9rem;color:var(--ink);outline:none;min-width:155px;
   transition:border-color .15s}
 .binp:focus{border-color:var(--green);background:white}
+.obchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:7px}
+.obchip{display:flex;align-items:center;gap:5px;background:var(--cream2);border:1px solid var(--border);
+  padding:3px 6px 3px 8px;font-size:.8rem;font-family:var(--serif)}
+.obchip button{background:none;border:none;color:var(--red);cursor:pointer;font-size:.9rem;line-height:1;
+  padding:0 0 0 2px;font-family:var(--serif)}
 
 /* ── BUTTONS ── */
 .btn{padding:9px 20px;border:none;cursor:pointer;font-family:var(--mono);font-size:.75rem;
@@ -463,6 +468,9 @@ input[type=number]{-moz-appearance:textfield}
           <p style="font-size:.86rem;font-style:italic;color:var(--ink3);margin-bottom:14px">
             En eliminatorias cada partido puede terminar empatado y definirse por penales. Vos solo predecís el resultado del tiempo reglamentario y quién avanza — no los penales.
           </p>
+          <div style="margin-bottom:14px;padding:10px 12px;background:var(--ink);color:var(--cream);font-family:var(--mono);font-size:.78rem;letter-spacing:.5px">
+            <strong style="color:var(--gold2)">Resumen:</strong> +1 pt si acertás el resultado (tiempo reglamentario) · +2 pts extra si además acertás el marcador exacto
+          </div>
           <div class="drow"><span>Acertás el resultado del partido (quién gana o empate)</span><span class="pbadge pp">+1 pt</span></div>
           <div class="drow"><span>Además acertás el marcador exacto del tiempo reglamentario</span><span class="pbadge pp">+2 pts extra</span></div>
           <div class="drow"><span>Acertás qué equipo avanza (incluso si fue por penales)</span><span class="pbadge pp">+1 a +5 pts según ronda</span></div>
@@ -949,6 +957,10 @@ function score(uname, numWinners){
     let hit=false;
     if(q.num){
       hit = nw[q.key] instanceof Set && nw[q.key].has(uname);
+    } else if(q.dropdown){
+      // ov may hold more than one team (empate), separated by commas
+      const okTeams=ov.split(',').map(s=>s.trim()).filter(Boolean);
+      hit = okTeams.includes(uv.trim());
     } else {
       hit = uv.trim()===ov.trim();
     }
@@ -1696,6 +1708,7 @@ function simRankingAlt(){
       if(!uv||ov===undefined||ov===null||ov==='') return;
       let hit=false;
       if(q.num){ hit=nw[q.key] instanceof Set&&nw[q.key].has(u); }
+      else if(q.dropdown){ hit=ov.split(',').map(s=>s.trim()).filter(Boolean).includes(uv.trim()); }
       else { hit=uv.trim()===ov.trim(); }
       if(hit) bp+=q.pts;
     });
@@ -1775,20 +1788,13 @@ function renderCompletionTable(){
 }
 function renderAdmin(){
   const off=D.results||{}, ob=D.bonus||{}, ko=D.ko||KO_DEF;
+  window._obMulti=window._obMulti||{};
+  BQ.filter(q=>q.dropdown).forEach(q=>{
+    if(!window._obMulti[q.key]) window._obMulti[q.key]=(ob[q.key]||'').split(',').map(s=>s.trim()).filter(Boolean);
+  });
   const gs=[...new Set(MP1.map(m=>m.g))].sort();
   const KO_ROUNDS=['none','Dieciseisavos','Octavos','Cuartos','Semis','FinalYTercer'];
-  let h=`<div class="az"><h3>¿Quién completó cada ronda?</h3>
-    <p style="font-size:.82rem;color:var(--ink3);margin-bottom:10px;font-style:italic">Vista rápida de cuántos partidos predijo cada participante en cada ronda, sin tener que entrar a Firebase. ✓ = ronda completa.</p>
-    ${renderCompletionTable()}
-  </div>
-  <details style="margin-bottom:14px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:8px 12px;background:var(--cream2);border:1px solid var(--border)">▸ Simulador sistema alternativo (3pts resultado · 1pt exacto)</summary>
-    <div style="padding:12px;border:1px solid var(--border);border-top:none;background:var(--cream)">
-      <p style="font-size:.82rem;color:var(--ink3);margin-bottom:10px;font-style:italic">Simula cómo quedaría el ranking con el sistema de la fase de grupos (3pts resultado, 1pt exacto). Los puntos de clasificados a 16avos se mantienen. Las flechas muestran cuántos puestos sube ▲ o baja ▼ respecto al ranking actual.</p>
-      <button class="btn btn-outline btn-sm" onclick="simRankingAlt()">Calcular simulación</button>
-      <div id="simAltResult" style="margin-top:10px"></div>
-    </div>
-  </details>
-  <div class="az"><h3>Control de fases</h3>
+  let h=`<div class="az"><h3>Control de fases</h3>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <button class="btn btn-green btn-sm" onclick="setPhase(1,'open')">✓ Abrir Fase 1</button>
       <button class="btn btn-red btn-sm" onclick="setPhase(1,'closed')">✗ Cerrar Fase 1</button>
@@ -1859,18 +1865,12 @@ function renderAdmin(){
     });
   });
 
-  h+=`</div><div class="az"><h3>Resultados bonus oficiales</h3>`;
+  h+=`</div><div class="az"><h3>Resultados bonus oficiales</h3>
+    <p style="font-size:.8rem;color:var(--ink3);font-style:italic;margin-bottom:10px">Si hay empate entre equipos (ej: dos equipos con la misma cantidad de goles), agregá los dos — todo el que haya predicho cualquiera de los equipos empatados gana el punto.</p>`;
   BQ.forEach(q=>{
     let inp;
     if(q.dropdown){
-      const selVal=ob[q.key]||'';
-      inp=`<div style="display:flex;align-items:center;gap:6px">
-        <span id="ob_flag_${q.key}" style="width:20px;height:15px;display:inline-flex;align-items:center">${selVal?flag(selVal):''}</span>
-        <select class="binp" id="ob_${q.key}" style="min-width:165px;cursor:pointer" onchange="updateFlagSpan('ob_flag_${q.key}',this.value)">
-          <option value="">— Seleccioná un equipo —</option>
-          ${TEAM_LIST.map(t=>`<option value="${t}"${selVal===t?' selected':''}>${t}</option>`).join('')}
-        </select>
-      </div>`;
+      inp=renderObMulti(q);
     } else if(q.num){
       inp=`<input type="number" step="0.1" class="binp" id="ob_${q.key}" value="${ob[q.key]||''}" placeholder="ej: 28.5">`;
     } else {
@@ -1879,6 +1879,20 @@ function renderAdmin(){
     h+=`<div class="bitem"><div><div class="bq">${q.label}</div></div>${inp}</div>`;
   });
   h+=`<div style="margin-top:12px"><button class="btn btn-dark" onclick="saveOfficialBonus()">✓ Guardar bonus oficial</button></div></div>`;
+
+  h+=`<details style="margin-top:14px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:8px 12px;background:var(--cream2);border:1px solid var(--border)">▸ ¿Quién completó cada ronda?</summary>
+    <div style="padding:12px;border:1px solid var(--border);border-top:none;background:var(--cream)">
+      <p style="font-size:.82rem;color:var(--ink3);margin-bottom:10px;font-style:italic">Vista rápida de cuántos partidos predijo cada participante en cada ronda, sin tener que entrar a Firebase. ✓ = ronda completa.</p>
+      ${renderCompletionTable()}
+    </div>
+  </details>
+  <details style="margin-top:10px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:8px 12px;background:var(--cream2);border:1px solid var(--border)">▸ Simulador sistema alternativo (3pts resultado · 1pt exacto)</summary>
+    <div style="padding:12px;border:1px solid var(--border);border-top:none;background:var(--cream)">
+      <p style="font-size:.82rem;color:var(--ink3);margin-bottom:10px;font-style:italic">Simula cómo quedaría el ranking con el sistema de la fase de grupos (3pts resultado, 1pt exacto). Los puntos de clasificados a 16avos se mantienen. Las flechas muestran cuántos puestos sube ▲ o baja ▼ respecto al ranking actual.</p>
+      <button class="btn btn-outline btn-sm" onclick="simRankingAlt()">Calcular simulación</button>
+      <div id="simAltResult" style="margin-top:10px"></div>
+    </div>
+  </details>`;
 
   document.getElementById('adminWrap').innerHTML=h;
 }
@@ -2025,8 +2039,38 @@ function saveKO(id){
   if(m){m.l=l?.value||'TBD';m.v=v?.value||'TBD';}
   dbS('ko',ko);
 }
+function renderObMulti(q){
+  const arr=window._obMulti[q.key]||[];
+  const chips=arr.map(t=>`<span class="obchip">${flag(t)} ${t}<button type="button" onclick="removeObTeam('${q.key}','${t}')" title="Quitar">×</button></span>`).join('');
+  return `<div>
+    <div class="obchips" id="obchips_${q.key}">${chips||'<span style="font-family:var(--mono);font-size:.7rem;color:var(--ink3);font-style:italic">Sin equipo asignado</span>'}</div>
+    <select class="binp" id="obsel_${q.key}" style="min-width:200px;cursor:pointer" onchange="addObTeam('${q.key}',this.value);this.value=''">
+      <option value="">${arr.length?'+ Agregar otro equipo (empate)':'— Seleccioná un equipo —'}</option>
+      ${TEAM_LIST.filter(t=>!arr.includes(t)).map(t=>`<option value="${t}">${t}</option>`).join('')}
+    </select>
+  </div>`;
+}
+function addObTeam(key,val){
+  if(!val)return;
+  window._obMulti=window._obMulti||{};
+  if(!window._obMulti[key])window._obMulti[key]=[];
+  if(!window._obMulti[key].includes(val))window._obMulti[key].push(val);
+  renderAdmin();
+}
+function removeObTeam(key,val){
+  if(window._obMulti&&window._obMulti[key])window._obMulti[key]=window._obMulti[key].filter(t=>t!==val);
+  renderAdmin();
+}
 function saveOfficialBonus(){
-  const b={};BQ.forEach(q=>{const e=document.getElementById('ob_'+q.key);if(e)b[q.key]=e.value;});
+  const b={};
+  BQ.forEach(q=>{
+    if(q.dropdown){
+      b[q.key]=(window._obMulti[q.key]||[]).join(', ');
+    } else {
+      const e=document.getElementById('ob_'+q.key);
+      if(e)b[q.key]=e.value;
+    }
+  });
   dbS('bonus',b).then(()=>toast('✓ Bonus oficial guardado'));
 }
 
@@ -2061,6 +2105,7 @@ function buildRaceSteps(){
       if(!uv||ov===undefined||ov===null||ov==='') return;
       let hit=false;
       if(q.num){ hit=nw[q.key] instanceof Set && nw[q.key].has(u); }
+      else if(q.dropdown){ hit=ov.split(',').map(s=>s.trim()).filter(Boolean).includes(uv.trim()); }
       else { hit=uv.trim()===ov.trim(); }
       if(hit) bp+=q.pts;
     });
