@@ -1890,19 +1890,22 @@ function renderAdmin(){
   });
 
   h+=`</div><div class="az"><h3>Resultados bonus oficiales</h3>
-    <p style="font-size:.8rem;color:var(--ink3);font-style:italic;margin-bottom:10px">Si hay empate entre equipos (ej: dos equipos con la misma cantidad de goles), agregá los dos — todo el que haya predicho cualquiera de los equipos empatados gana el punto.</p>`;
+    <p style="font-size:.8rem;color:var(--ink3);font-style:italic;margin-bottom:10px">Si hay empate entre equipos (ej: dos equipos con la misma cantidad de goles), agregá los dos — todo el que haya predicho cualquiera de los equipos empatados gana el punto. Se guarda solo, al elegir un equipo o cambiar un valor.</p>`;
   BQ.forEach(q=>{
     let inp;
     if(q.dropdown){
       inp=renderObMulti(q);
     } else if(q.num){
-      inp=`<input type="number" step="0.1" class="binp" id="ob_${q.key}" value="${ob[q.key]||''}" placeholder="ej: 28.5">`;
+      inp=`<input type="number" step="0.1" class="binp" id="ob_${q.key}" value="${ob[q.key]||''}" placeholder="ej: 28.5" onchange="saveOfficialBonus()">`;
     } else {
-      inp=`<input type="text" class="binp" id="ob_${q.key}" value="${ob[q.key]||''}" placeholder="Nombre del equipo">`;
+      inp=`<input type="text" class="binp" id="ob_${q.key}" value="${ob[q.key]||''}" placeholder="Nombre del equipo" onchange="saveOfficialBonus()">`;
     }
     h+=`<div class="bitem"><div><div class="bq">${q.label}</div></div>${inp}</div>`;
   });
-  h+=`<div style="margin-top:12px"><button class="btn btn-dark" onclick="saveOfficialBonus()">✓ Guardar bonus oficial</button></div></div>`;
+  h+=`<div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+    <button class="btn btn-dark" onclick="saveOfficialBonus()">✓ Guardar bonus oficial</button>
+    <span id="obSaveStatus" style="font-family:var(--mono);font-size:.68rem;color:var(--ink3)"></span>
+  </div></div>`;
 
   h+=`<details style="margin-top:14px"><summary style="cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);padding:8px 12px;background:var(--cream2);border:1px solid var(--border)">▸ ¿Quién completó cada ronda?</summary>
     <div style="padding:12px;border:1px solid var(--border);border-top:none;background:var(--cream)">
@@ -2080,10 +2083,12 @@ function addObTeam(key,val){
   if(!window._obMulti[key])window._obMulti[key]=[];
   if(!window._obMulti[key].includes(val))window._obMulti[key].push(val);
   renderAdmin();
+  saveOfficialBonus();
 }
 function removeObTeam(key,val){
   if(window._obMulti&&window._obMulti[key])window._obMulti[key]=window._obMulti[key].filter(t=>t!==val);
   renderAdmin();
+  saveOfficialBonus();
 }
 function saveOfficialBonus(){
   const b={};
@@ -2092,10 +2097,19 @@ function saveOfficialBonus(){
       b[q.key]=(window._obMulti[q.key]||[]).join(', ');
     } else {
       const e=document.getElementById('ob_'+q.key);
-      if(e)b[q.key]=e.value;
+      b[q.key]=e?e.value:'';
     }
   });
-  dbS('bonus',b).then(()=>toast('✓ Bonus oficial guardado'));
+  const statusEl=document.getElementById('obSaveStatus');
+  if(statusEl) statusEl.textContent='Guardando…';
+  dbS('bonus',b).then(()=>{
+    toast('✓ Bonus oficial guardado');
+    if(statusEl) statusEl.textContent='✓ Guardado '+new Date().toLocaleTimeString('es-AR');
+  }).catch(err=>{
+    console.error('Error guardando bonus oficial:',err);
+    toast('✗ Error al guardar — revisá tu conexión');
+    if(statusEl) statusEl.textContent='✗ Error: '+(err&&err.message?err.message:'no se pudo guardar');
+  });
 }
 
 // ─ UI ───────────────────────────────────────────────────────
